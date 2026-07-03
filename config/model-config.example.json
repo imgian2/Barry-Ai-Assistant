@@ -1,0 +1,24 @@
+{
+  "assistant_name": "Barry",
+  "system_prompt_file": "prompts/barry-system.prompt.xml",
+  "context_injection": {
+    "include_active_repository_context": true,
+    "include_directory_structure": true,
+    "include_relevant_terminal_logs": true,
+    "integration_manifest_schema": "schemas/integration-manifest.schema.json",
+    "example_integration_manifest": "examples/integration-manifest.example.json"
+  },
+  "confirmation_gate": {
+    "enabled": true,
+    "reference_implementation": "src/consequence-gate.ts",
+    "consequential_action_types": [
+      "spend_money",
+      "publish_external",
+      "deploy_production",
+      "delete_data",
+      "send_external",
+      "modify_billing",
+      "connect_paid_service"
+    ]
+  }
+}
