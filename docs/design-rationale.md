@@ -21,3 +21,4 @@ Barry should act fast, but it must confirm before irreversible or costly actions
 5. Extensibility as a first-class concept.
 
 Users will install skills and integrations over time, so the prompt treats installed capabilities as a dynamic, enumerable inventory rather than hardcoding every possible platform.
+

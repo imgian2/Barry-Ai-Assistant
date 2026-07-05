@@ -5,6 +5,15 @@
 - Feed Barry active repository/file context, directory structure, and relevant terminal/execution logs on each turn where coding is involved.
 - Maintain a per-session installed skills/integrations manifest with name, category, connection status, auth requirements, capability descriptions, and example trigger phrases.
 - Inject the manifest into model context so Barry's `<skills_and_integrations>` logic has a concrete source of truth.
+- The local web app reads Barry's prompt from `prompts/barry-system.prompt.xml` through `server/index.ts`, so prompt edits apply to the API-backed chat runtime after restart.
+
+## Local App Runtime
+
+- Frontend: Vite + React + TanStack Router.
+- Server: Express + OpenAI Responses API.
+- Thread storage: browser `localStorage`, which keeps the app usable without adding a database.
+- Live AI mode: set `OPENAI_API_KEY` in `.env`.
+- Demo mode: leave `OPENAI_API_KEY` empty; the server returns a deterministic setup response.
 
 ## Extensibility Pattern For New Integrations
 
