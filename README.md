@@ -35,9 +35,18 @@ For local development:
 1. Install Node.js 22 or newer.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
-4. Set `OPENAI_API_KEY` in `.env` for live AI responses. Without it, Barry runs in demo mode.
+4. Set `OPENAI_API_KEY` in `.env`.
 5. Run `npm run dev`.
 6. Open `http://127.0.0.1:5173`.
+
+`npm run dev` starts two processes: the Vite frontend on port `5173` and the
+Barry Express API on port `8787`. Vite proxies `/api/*` requests to the Express
+server during local development.
+
+For a production-style local run, use `npm run preview`. That builds the Vite
+frontend and serves both the static app and `/api/*` routes from the Express
+server at `http://127.0.0.1:8787`. Do not use `vite preview` by itself for this
+app, because it only serves frontend assets and does not own `POST /api/chat`.
 
 For model configuration outside this app:
 
@@ -64,9 +73,10 @@ The local server exposes:
 
 The server reads Barry's instructions directly from `prompts/barry-system.prompt.xml`.
 This keeps the web app and workspace-agent prompt aligned.
-If the browser cannot reach the API server, or if the server cannot complete a live
-OpenAI request, Barry returns a local demo-mode response instead of blocking the
-conversation with a hard error.
+If `OPENAI_API_KEY` is missing, `/api/chat` returns a `503` JSON error with
+`code: "missing_openai_api_key"`. If the OpenAI request fails, the API returns
+the actual HTTP status when available and the chat UI displays that diagnostic
+instead of saving a fake assistant response.
 
 ## Consequential Actions
 

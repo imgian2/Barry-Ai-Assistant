@@ -64,6 +64,9 @@ export function ChatThread() {
       inputRef.current?.focus();
     },
   });
+  const chatErrorMessage =
+    sendMutationErrorMessage(sendMutation.error) ??
+    "Barry could not complete the request.";
 
   const createThreadMutation = useMutation({
     mutationFn: () => createThread(),
@@ -181,8 +184,8 @@ export function ChatThread() {
 
         {sendMutation.isError ? (
           <div className="error-banner" role="alert">
-            Barry could not reach the server. Check `npm run dev`, your
-            `OPENAI_API_KEY`, and the server logs.
+            <strong>Barry request failed.</strong>
+            <span>{chatErrorMessage}</span>
           </div>
         ) : null}
       </section>
@@ -216,4 +219,10 @@ export function ChatThread() {
       </form>
     </main>
   );
+}
+
+function sendMutationErrorMessage(error: unknown) {
+  if (!error) return null;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return String(error);
 }

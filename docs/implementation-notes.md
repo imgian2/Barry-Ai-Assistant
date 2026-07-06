@@ -13,7 +13,7 @@
 - Server: Express + OpenAI Responses API.
 - Thread storage: browser `localStorage`, which keeps the app usable without adding a database.
 - Live AI mode: set `OPENAI_API_KEY` in `.env`.
-- Demo mode: leave `OPENAI_API_KEY` empty; the server returns a deterministic setup response.
+- Missing key behavior: if `OPENAI_API_KEY` is empty, `/api/chat` returns a clear `503` configuration error.
 
 ## Extensibility Pattern For New Integrations
 

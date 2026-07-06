@@ -481,11 +481,18 @@ h1 span {
 }
 
 .error-banner {
+  display: grid;
+  gap: 5px;
   border: 1px solid rgba(255, 123, 123, 0.3);
   border-radius: 8px;
   background: rgba(255, 123, 123, 0.12);
   color: #ffd7d7;
   padding: 12px;
+}
+
+.error-banner strong {
+  font-size: 13px;
+  text-transform: uppercase;
 }
 
 .sr-only {

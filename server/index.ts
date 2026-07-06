@@ -1,8 +1,10 @@
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import type { ErrorRequestHandler } from "express";
 import OpenAI from "openai";
 
 dotenv.config();
@@ -14,18 +16,37 @@ type IncomingMessage = {
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
+const host = process.env.HOST ?? "127.0.0.1";
 const model = process.env.OPENAI_MODEL ?? "gpt-4.1";
 const client = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
+const handleJsonParseError: ErrorRequestHandler = (
+  error,
+  _request,
+  response,
+  next
+) => {
+  if ((error as { type?: unknown })?.type === "entity.parse.failed") {
+    response.status(400).json({
+      code: "invalid_json",
+      error: "Request body must be valid JSON.",
+    });
+    return;
+  }
+
+  next(error);
+};
+
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "1mb" }));
+app.use(handleJsonParseError);
 
 app.get("/api/health", (_request, response) => {
   response.json({
     ok: true,
-    mode: client ? "live" : "demo",
+    mode: client ? "live" : "configuration_error",
     model,
   });
 });
@@ -42,10 +63,11 @@ app.post("/api/chat", async (request, response) => {
   }
 
   if (!client) {
-    response.json({
-      mode: "demo",
+    response.status(503).json({
+      code: "missing_openai_api_key",
+      error:
+        "OPENAI_API_KEY is not configured. Add it to .env or the host environment, then restart the Barry server.",
       model,
-      message: createDemoResponse(lastUserMessage),
     });
     return;
   }
@@ -68,16 +90,43 @@ app.post("/api/chat", async (request, response) => {
     });
   } catch (error) {
     console.error("Barry API error", error);
-    response.json({
-      mode: "demo",
+    response.status(getHttpStatus(error)).json({
+      code: "openai_request_failed",
+      error: getErrorMessage(error),
       model,
-      message: createServerFallbackResponse(lastUserMessage),
     });
   }
 });
 
-app.listen(port, "127.0.0.1", () => {
-  console.log(`Barry server listening on http://127.0.0.1:${port}`);
+app.all("/api/chat", (request, response) => {
+  response
+    .set("Allow", "POST")
+    .status(405)
+    .json({
+      code: "method_not_allowed",
+      error: `Method ${request.method} is not allowed for /api/chat. Use POST with a JSON body.`,
+    });
+});
+
+app.use("/api", (request, response) => {
+  response.status(404).json({
+    code: "api_route_not_found",
+    error: `No API route found for ${request.method} ${request.originalUrl}.`,
+  });
+});
+
+const staticDir = path.resolve(process.cwd(), "dist");
+const staticIndex = path.join(staticDir, "index.html");
+
+if (existsSync(staticIndex)) {
+  app.use(express.static(staticDir));
+  app.get("*", (_request, response) => {
+    response.sendFile(staticIndex);
+  });
+}
+
+app.listen(port, host, () => {
+  console.log(`Barry server listening on http://${host}:${port}`);
 });
 
 function normalizeMessages(value: unknown): IncomingMessage[] {
@@ -128,24 +177,20 @@ function extractOutputText(result: unknown) {
   return textParts.join("\n").trim() || "I could not extract a response.";
 }
 
-function createDemoResponse(prompt: string) {
-  return [
-    "Barry is wired up and running in demo mode.",
-    "",
-    "To switch me into live AI mode, set `OPENAI_API_KEY` in `.env`, optionally set `OPENAI_MODEL`, and restart `npm run dev`.",
-    "",
-    `I received your request: "${prompt}"`,
-    "",
-    "Fast default: I would clarify only if the next action is risky, irreversible, or needs private integration data.",
-  ].join("\n");
+function getHttpStatus(error: unknown) {
+  const status =
+    (error as { status?: unknown })?.status ??
+    (error as { statusCode?: unknown })?.statusCode;
+
+  return typeof status === "number" && status >= 400 && status <= 599
+    ? status
+    : 502;
 }
 
-function createServerFallbackResponse(prompt: string) {
-  return [
-    "Barry reached the local server, but the live OpenAI request did not complete.",
-    "",
-    `I received your request: "${prompt}"`,
-    "",
-    "Check `OPENAI_API_KEY`, `OPENAI_MODEL`, and the server logs. I am keeping the conversation moving in demo mode instead of dropping the chat.",
-  ].join("\n");
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return `OpenAI request failed: ${error.message}`;
+  }
+
+  return "OpenAI request failed for an unknown reason. Check the Barry server logs.";
 }
