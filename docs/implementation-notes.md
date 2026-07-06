@@ -14,6 +14,7 @@
 - Thread storage: browser `localStorage`, which keeps the app usable without adding a database.
 - Live AI mode: set `OPENAI_API_KEY` in `.env`.
 - Missing key behavior: if `OPENAI_API_KEY` is empty, `/api/chat` returns a clear `503` configuration error.
+- Deployment binding: the Express server reads `PORT` and binds to `HOST` or `0.0.0.0`, so Railway and similar platforms can route external traffic to it.
 
 ## Extensibility Pattern For New Integrations
 

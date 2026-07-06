@@ -48,6 +48,19 @@ frontend and serves both the static app and `/api/*` routes from the Express
 server at `http://127.0.0.1:8787`. Do not use `vite preview` by itself for this
 app, because it only serves frontend assets and does not own `POST /api/chat`.
 
+## Railway Deployment
+
+Barry's Express server reads `PORT` from the environment and binds to
+`0.0.0.0` by default, which is required for Railway's router to reach the app.
+Use `npm run build` as the build command and `npm start` as the start command.
+
+Set these Railway variables:
+
+- `OPENAI_API_KEY`: required for live chat responses.
+- `OPENAI_MODEL`: optional, defaults to `gpt-4.1`.
+
+Do not set `HOST=127.0.0.1` in Railway. If you define `HOST`, use `0.0.0.0`.
+
 For model configuration outside this app:
 
 1. Configure the model to use `prompts/barry-system.prompt.xml` as Barry's system prompt.

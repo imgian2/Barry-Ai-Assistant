@@ -35,6 +35,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.5
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -57,9 +60,6 @@ importers:
       concurrently:
         specifier: ^9.1.0
         version: 9.2.3
-      tsx:
-        specifier: ^4.19.2
-        version: 4.22.5
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

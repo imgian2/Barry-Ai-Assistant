@@ -16,7 +16,7 @@ type IncomingMessage = {
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
-const host = process.env.HOST ?? "127.0.0.1";
+const host = process.env.HOST ?? "0.0.0.0";
 const model = process.env.OPENAI_MODEL ?? "gpt-4.1";
 const client = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
