@@ -35,7 +35,7 @@ For local development:
 1. Install Node.js 22 or newer.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
-4. Set `OPENAI_API_KEY` in `.env`.
+4. Set `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, or both in `.env`.
 5. Run `npm run dev`.
 6. Open `http://127.0.0.1:5173`.
 
@@ -56,8 +56,12 @@ Use `npm run build` as the build command and `npm start` as the start command.
 
 Set these Railway variables:
 
-- `OPENAI_API_KEY`: required for live chat responses.
+- `OPENAI_API_KEY`: required for OpenAI / ChatGPT responses.
 - `OPENAI_MODEL`: optional, defaults to `gpt-4.1`.
+- `DEEPSEEK_API_KEY`: required for DeepSeek responses.
+- `DEEPSEEK_BASE_URL`: optional, defaults to `https://api.deepseek.com`.
+- `DEEPSEEK_MODEL`: optional, defaults to `deepseek-v4-pro`.
+- `AI_PROVIDER`: optional default for server-side requests, `openai` or `deepseek`.
 
 Do not set `HOST=127.0.0.1` in Railway. If you define `HOST`, use `0.0.0.0`.
 
@@ -87,9 +91,15 @@ The local server exposes:
 The server reads Barry's instructions directly from `prompts/barry-system.prompt.xml`.
 This keeps the web app and workspace-agent prompt aligned.
 If `OPENAI_API_KEY` is missing, `/api/chat` returns a `503` JSON error with
-`code: "missing_openai_api_key"`. If the OpenAI request fails, the API returns
-the actual HTTP status when available and the chat UI displays that diagnostic
+`code: "missing_openai_api_key"`. If `DEEPSEEK_API_KEY` is missing while the
+DeepSeek provider is selected, `/api/chat` returns `code:
+"missing_deepseek_api_key"`. If a provider request fails, the API returns the
+actual HTTP status when available and the chat UI displays that diagnostic
 instead of saving a fake assistant response.
+
+The chat header includes an AI provider dropdown. Choose `OpenAI / ChatGPT` to
+use OpenAI's Responses API, or `DeepSeek` to use DeepSeek's OpenAI-compatible
+Chat Completions API.
 
 ## Consequential Actions
 

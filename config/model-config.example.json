@@ -23,8 +23,13 @@
       "health_endpoint": "http://127.0.0.1:8787/api/health",
       "chat_endpoint": "http://127.0.0.1:8787/api/chat",
       "env": [
+        "AI_PROVIDER",
         "OPENAI_API_KEY",
         "OPENAI_MODEL",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_BASE_URL",
+        "DEEPSEEK_MODEL",
+        "HOST",
         "PORT"
       ]
     }

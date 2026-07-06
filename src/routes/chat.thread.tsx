@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowUp, CircleAlert, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { sendChatMessage } from "@/lib/api";
+import { ChatProvider, sendChatMessage } from "@/lib/api";
 import {
   appendMessage,
   createThread,
@@ -12,11 +12,18 @@ import {
   updateThreadTitleFromMessages,
 } from "@/lib/threads";
 
+const providerStorageKey = "barry.chatProvider.v1";
+const providerOptions: Array<{ label: string; value: ChatProvider }> = [
+  { label: "OpenAI / ChatGPT", value: "openai" },
+  { label: "DeepSeek", value: "deepseek" },
+];
+
 export function ChatThread() {
   const { threadId } = useParams({ from: "/chat/$threadId" });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
+  const [provider, setProvider] = useState<ChatProvider>(readStoredProvider);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const autoRunRef = useRef<string | null>(null);
 
@@ -50,6 +57,7 @@ export function ChatThread() {
       const refreshedThread = getThread(threadId);
       const response = await sendChatMessage({
         messages: refreshedThread?.messages ?? [],
+        provider,
       });
 
       appendMessage(threadId, {
@@ -93,6 +101,11 @@ export function ChatThread() {
     await navigate({ to: "/chat" });
   };
 
+  const handleProviderChange = (nextProvider: ChatProvider) => {
+    setProvider(nextProvider);
+    window.localStorage.setItem(providerStorageKey, nextProvider);
+  };
+
   useEffect(() => {
     const starterMessage =
       messages.length === 1 && messages[0]?.role === "user"
@@ -134,6 +147,22 @@ export function ChatThread() {
           <h1>{thread.title}</h1>
         </div>
         <div className="thread-actions">
+          <label className="provider-control">
+            <span>AI</span>
+            <select
+              value={provider}
+              disabled={sendMutation.isPending}
+              onChange={(event) =>
+                handleProviderChange(event.target.value as ChatProvider)
+              }
+            >
+              {providerOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <Button
             variant="secondary"
             onClick={() => createThreadMutation.mutate()}
@@ -219,6 +248,13 @@ export function ChatThread() {
       </form>
     </main>
   );
+}
+
+function readStoredProvider(): ChatProvider {
+  if (typeof window === "undefined") return "openai";
+  return window.localStorage.getItem(providerStorageKey) === "deepseek"
+    ? "deepseek"
+    : "openai";
 }
 
 function sendMutationErrorMessage(error: unknown) {

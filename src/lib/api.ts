@@ -2,20 +2,25 @@ import { ChatMessage } from "@/lib/types";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+export type ChatProvider = "openai" | "deepseek";
+
 export interface ChatRequest {
   messages: ChatMessage[];
+  provider: ChatProvider;
 }
 
 export interface ChatResponse {
   message: string;
   mode: "live";
   model: string;
+  provider: ChatProvider;
 }
 
 interface ChatErrorResponse {
   code?: string;
   error?: string;
   model?: string;
+  provider?: ChatProvider;
 }
 
 export class ChatApiError extends Error {

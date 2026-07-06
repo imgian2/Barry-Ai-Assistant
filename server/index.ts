@@ -14,12 +14,23 @@ type IncomingMessage = {
   content: string;
 };
 
+type ChatProvider = "openai" | "deepseek";
+
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? "0.0.0.0";
-const model = process.env.OPENAI_MODEL ?? "gpt-4.1";
-const client = process.env.OPENAI_API_KEY
+const defaultProvider = normalizeProvider(process.env.AI_PROVIDER);
+const openaiModel = process.env.OPENAI_MODEL ?? "gpt-4.1";
+const deepseekModel = process.env.DEEPSEEK_MODEL ?? "deepseek-v4-pro";
+const deepseekBaseUrl = process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com";
+const openaiClient = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+const deepseekClient = process.env.DEEPSEEK_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      baseURL: deepseekBaseUrl,
+    })
   : null;
 
 const handleJsonParseError: ErrorRequestHandler = (
@@ -46,12 +57,22 @@ app.use(handleJsonParseError);
 app.get("/api/health", (_request, response) => {
   response.json({
     ok: true,
-    mode: client ? "live" : "configuration_error",
-    model,
+    defaultProvider,
+    providers: {
+      openai: {
+        configured: Boolean(openaiClient),
+        model: openaiModel,
+      },
+      deepseek: {
+        configured: Boolean(deepseekClient),
+        model: deepseekModel,
+      },
+    },
   });
 });
 
 app.post("/api/chat", async (request, response) => {
+  const provider = normalizeProvider(request.body?.provider);
   const messages = normalizeMessages(request.body?.messages);
   const lastUserMessage =
     [...messages].reverse().find((message) => message.role === "user")?.content ??
@@ -62,38 +83,39 @@ app.post("/api/chat", async (request, response) => {
     return;
   }
 
+  const client = getProviderClient(provider);
+  const model = getProviderModel(provider);
+
   if (!client) {
     response.status(503).json({
-      code: "missing_openai_api_key",
-      error:
-        "OPENAI_API_KEY is not configured. Add it to .env or the host environment, then restart the Barry server.",
+      code: `missing_${provider}_api_key`,
+      error: `${getProviderApiKeyName(provider)} is not configured. Add it to .env or the host environment, then restart the Barry server.`,
       model,
+      provider,
     });
     return;
   }
 
   try {
     const instructions = await readBarryPrompt();
-    const result = await client.responses.create({
-      model,
-      instructions,
-      input: messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-    });
+    const message =
+      provider === "openai"
+        ? await createOpenAiResponse(client, model, instructions, messages)
+        : await createDeepSeekResponse(client, model, instructions, messages);
 
     response.json({
       mode: "live",
       model,
-      message: extractOutputText(result),
+      provider,
+      message,
     });
   } catch (error) {
-    console.error("Barry API error", error);
+    console.error(`Barry ${provider} API error`, error);
     response.status(getHttpStatus(error)).json({
-      code: "openai_request_failed",
-      error: getErrorMessage(error),
+      code: `${provider}_request_failed`,
+      error: getErrorMessage(error, provider),
       model,
+      provider,
     });
   }
 });
@@ -149,12 +171,69 @@ function normalizeMessages(value: unknown): IncomingMessage[] {
     .slice(-24);
 }
 
+function normalizeProvider(value: unknown): ChatProvider {
+  return value === "deepseek" || value === "openai" ? value : "openai";
+}
+
+function getProviderClient(provider: ChatProvider) {
+  return provider === "deepseek" ? deepseekClient : openaiClient;
+}
+
+function getProviderModel(provider: ChatProvider) {
+  return provider === "deepseek" ? deepseekModel : openaiModel;
+}
+
+function getProviderApiKeyName(provider: ChatProvider) {
+  return provider === "deepseek" ? "DEEPSEEK_API_KEY" : "OPENAI_API_KEY";
+}
+
 async function readBarryPrompt() {
   const promptPath = path.resolve(process.cwd(), "prompts/barry-system.prompt.xml");
   return fs.readFile(promptPath, "utf8");
 }
 
-function extractOutputText(result: unknown) {
+async function createOpenAiResponse(
+  client: OpenAI,
+  model: string,
+  instructions: string,
+  messages: IncomingMessage[]
+) {
+  const result = await client.responses.create({
+    model,
+    instructions,
+    input: messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+  });
+
+  return extractResponsesOutputText(result);
+}
+
+async function createDeepSeekResponse(
+  client: OpenAI,
+  model: string,
+  instructions: string,
+  messages: IncomingMessage[]
+) {
+  const result = await client.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "system",
+        content: instructions,
+      },
+      ...messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+    ],
+  });
+
+  return extractChatCompletionText(result);
+}
+
+function extractResponsesOutputText(result: unknown) {
   const outputText = (result as { output_text?: string }).output_text;
   if (outputText?.trim()) return outputText.trim();
 
@@ -177,6 +256,43 @@ function extractOutputText(result: unknown) {
   return textParts.join("\n").trim() || "I could not extract a response.";
 }
 
+function extractChatCompletionText(result: unknown) {
+  const content = (
+    result as {
+      choices?: Array<{
+        message?: {
+          content?: unknown;
+        };
+      }>;
+    }
+  ).choices?.[0]?.message?.content;
+
+  if (typeof content === "string" && content.trim()) {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .flatMap((part) => {
+        if (
+          part &&
+          typeof part === "object" &&
+          "text" in part &&
+          typeof (part as { text?: unknown }).text === "string"
+        ) {
+          return [(part as { text: string }).text];
+        }
+        return [];
+      })
+      .join("\n")
+      .trim();
+
+    if (text) return text;
+  }
+
+  return "I could not extract a response.";
+}
+
 function getHttpStatus(error: unknown) {
   const status =
     (error as { status?: unknown })?.status ??
@@ -187,10 +303,14 @@ function getHttpStatus(error: unknown) {
     : 502;
 }
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, provider: ChatProvider) {
   if (error instanceof Error && error.message.trim()) {
-    return `OpenAI request failed: ${error.message}`;
+    return `${getProviderLabel(provider)} request failed: ${error.message}`;
   }
 
-  return "OpenAI request failed for an unknown reason. Check the Barry server logs.";
+  return `${getProviderLabel(provider)} request failed for an unknown reason. Check the Barry server logs.`;
+}
+
+function getProviderLabel(provider: ChatProvider) {
+  return provider === "deepseek" ? "DeepSeek" : "OpenAI";
 }
