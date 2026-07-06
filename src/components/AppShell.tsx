@@ -1,15 +1,55 @@
 import { PropsWithChildren } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, Github, Search, ShieldCheck } from "lucide-react";
 import barryLogo from "@/assets/barry-logo.png";
-import { listThreads } from "@/lib/threads";
+import { createThread, listThreads } from "@/lib/threads";
+
+const capabilityActions = [
+  {
+    icon: Bot,
+    label: "Code and ops",
+    prompt:
+      "Help me with code and operations. Ask for the repo or process context you need, then give me the fastest safe path.",
+  },
+  {
+    icon: Search,
+    label: "Current research",
+    prompt:
+      "Research this with current sources. Tell me what you can verify, what is uncertain, and what action you recommend.",
+  },
+  {
+    icon: ShieldCheck,
+    label: "Confirmation gates",
+    prompt:
+      "Review this action for risk. Tell me whether it needs explicit confirmation before spending money, publishing, deploying, deleting, or sending externally.",
+  },
+  {
+    icon: Github,
+    label: "Repo-ready",
+    prompt:
+      "Help me prepare this repository change. Check the likely files, validation steps, commit scope, and anything that should not be pushed.",
+  },
+];
 
 export function AppShell({ children }: PropsWithChildren) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const threadsQuery = useQuery({
     queryKey: ["threads"],
     queryFn: listThreads,
+  });
+
+  const startCapability = useMutation({
+    mutationFn: (starterPrompt: string) => createThread(starterPrompt),
+    onSuccess: async (thread) => {
+      await queryClient.invalidateQueries({ queryKey: ["threads"] });
+      await navigate({
+        to: "/chat/$threadId",
+        params: { threadId: thread.id },
+      });
+    },
   });
 
   return (
@@ -46,26 +86,22 @@ export function AppShell({ children }: PropsWithChildren) {
         </nav>
 
         <div className="capability-strip" aria-label="Barry capabilities">
-          <span>
-            <Bot aria-hidden="true" />
-            Code and ops
-          </span>
-          <span>
-            <Search aria-hidden="true" />
-            Current research
-          </span>
-          <span>
-            <ShieldCheck aria-hidden="true" />
-            Confirmation gates
-          </span>
-          <span>
-            <Github aria-hidden="true" />
-            Repo-ready
-          </span>
+          {capabilityActions.map(({ icon: Icon, label, prompt }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => startCapability.mutate(prompt)}
+              disabled={startCapability.isPending}
+              className="capability-action"
+              title={`Start ${label}`}
+            >
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
       </aside>
       <div className="workspace">{children}</div>
     </div>
   );
 }
-

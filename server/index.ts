@@ -68,8 +68,10 @@ app.post("/api/chat", async (request, response) => {
     });
   } catch (error) {
     console.error("Barry API error", error);
-    response.status(500).json({
-      error: "Barry could not complete the request.",
+    response.json({
+      mode: "demo",
+      model,
+      message: createServerFallbackResponse(lastUserMessage),
     });
   }
 });
@@ -138,3 +140,12 @@ function createDemoResponse(prompt: string) {
   ].join("\n");
 }
 
+function createServerFallbackResponse(prompt: string) {
+  return [
+    "Barry reached the local server, but the live OpenAI request did not complete.",
+    "",
+    `I received your request: "${prompt}"`,
+    "",
+    "Check `OPENAI_API_KEY`, `OPENAI_MODEL`, and the server logs. I am keeping the conversation moving in demo mode instead of dropping the chat.",
+  ].join("\n");
+}

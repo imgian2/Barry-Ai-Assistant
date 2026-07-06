@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { sendChatMessage } from "@/lib/api";
 import {
   appendMessage,
+  createThread,
   deleteThread,
   getThread,
   updateThreadTitleFromMessages,
@@ -64,6 +65,17 @@ export function ChatThread() {
     },
   });
 
+  const createThreadMutation = useMutation({
+    mutationFn: () => createThread(),
+    onSuccess: async (newThread) => {
+      await queryClient.invalidateQueries({ queryKey: ["threads"] });
+      await navigate({
+        to: "/chat/$threadId",
+        params: { threadId: newThread.id },
+      });
+    },
+  });
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = draft.trim();
@@ -119,7 +131,11 @@ export function ChatThread() {
           <h1>{thread.title}</h1>
         </div>
         <div className="thread-actions">
-          <Button variant="secondary" onClick={() => navigate({ to: "/chat" })}>
+          <Button
+            variant="secondary"
+            onClick={() => createThreadMutation.mutate()}
+            disabled={createThreadMutation.isPending}
+          >
             <Plus aria-hidden="true" />
             New
           </Button>

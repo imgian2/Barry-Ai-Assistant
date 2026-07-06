@@ -127,15 +127,40 @@ a {
   margin-top: auto;
 }
 
-.capability-strip span {
+.capability-action {
   display: flex;
   align-items: center;
   gap: 9px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
   color: #d9d0c2;
+  cursor: pointer;
   font-size: 13px;
+  padding: 9px 10px;
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.capability-action:hover:not(:disabled),
+.capability-action:focus-visible {
+  border-color: rgba(244, 201, 93, 0.24);
+  background: rgba(244, 201, 93, 0.08);
+  color: var(--text);
+  outline: none;
+}
+
+.capability-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .capability-strip svg,
+.capability-action svg,
 .button svg,
 .suggestion-icon svg,
 .empty-message svg {
@@ -519,4 +544,3 @@ h1 span {
     max-width: 100%;
   }
 }
-

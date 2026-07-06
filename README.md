@@ -64,6 +64,9 @@ The local server exposes:
 
 The server reads Barry's instructions directly from `prompts/barry-system.prompt.xml`.
 This keeps the web app and workspace-agent prompt aligned.
+If the browser cannot reach the API server, or if the server cannot complete a live
+OpenAI request, Barry returns a local demo-mode response instead of blocking the
+conversation with a hard error.
 
 ## Consequential Actions
 
